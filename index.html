@@ -51,7 +51,7 @@ textarea{width:100%;padding:12px;border:1px solid #f4dca580;border-radius:12px;b
 <h1>Merhaba, Zeynep!</h1>
 <p class="name">Ben Ömer.</p>
 <p>Seni tanımama ne dersin?</p>
-<p class="note">Sayfa açılışı, düğme tıklamaları ve seçtiğin cevaplar Ömer’e Telegram bildirimi olarak iletilir. Zaman ayırdığın için teşekkür ederim.</p>
+<p class="note">Eğer bunu kabul edersen anlık olarak haberim olacak. Fakat etmezsen senin için uğraşmaya değerdi. Zaman ayırdığın için şimdiden teşekkür ederim.</p>
 <div class="actions"><button id="exit">Çık</button><button class="primary" id="accept">Kabul ediyorum</button></div>
 </section>
 <section id="interlude" hidden>
@@ -139,14 +139,6 @@ function renderQuestion() {
     const input = document.createElement('textarea');
     input.rows = 2;
     input.maxLength = 80;
-    const confirm = document.createElement('button');
-    confirm.textContent = 'Onayla';
-    confirm.hidden = true;
-    confirm.addEventListener('click', () => {
-      const flower = input.value.trim();
-      if (!flower) { input.focus(); return; }
-      notifyTelegram('flower', flower);
-    });
     input.placeholder = 'Aklımda kalsın. :)';
     input.setAttribute('aria-label', 'Başka bir çiçek');
     const buttons = ['Gül', 'Papatya', 'Lale', 'Başka bir çiçek'].map(label => {
@@ -161,15 +153,13 @@ function renderQuestion() {
       button.addEventListener('click', () => {
         buttons.forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
         input.hidden = index !== 3;
-        confirm.hidden = input.hidden;
-        notifyTelegram('answer4', button.textContent);
         if (!input.hidden) input.focus();
       });
     });
     const note = document.createElement('p');
     note.className = 'subtle';
-    note.textContent = 'Yazdığın çiçek adı Onayla’ya dokunduğunda iletilir.';
-    field.append(options, input, confirm, note);
+    note.textContent = 'Yazdığın çiçek adı Bitir’e dokunduğunda iletilir.';
+    field.append(options, input, note);
     byId('next').textContent = 'Bitir';
     return title;
   }
@@ -191,7 +181,6 @@ function renderQuestion() {
       }
       reply.hidden = false;
       reply.textContent = comment;
-      notifyTelegram('answer' + (current + 1), label);
     });
     options.append(option);
   }
@@ -220,7 +209,19 @@ byId('accept').addEventListener('click', () => {
 });
 document.querySelector('.whatsapp').addEventListener('click', () => notifyTelegram('whatsapp'));
 byId('next').addEventListener('click', () => {
-  notifyTelegram(current === questions.length ? 'finish' : 'next', String(current + 1));
+  const question = byId('question');
+  const selected = question.querySelector('button[aria-pressed="true"]');
+  const customFlower = question.querySelector('textarea:not([hidden])');
+  if (customFlower) {
+    const flower = customFlower.value.trim();
+    if (!flower) {
+      customFlower.focus();
+      return;
+    }
+    notifyTelegram('flower', flower);
+  } else if (selected) {
+    notifyTelegram('answer' + (current + 1), selected.textContent);
+  }
   if (current === questions.length) {
     byId('questions').hidden = true;
     byId('ending').hidden = false;
