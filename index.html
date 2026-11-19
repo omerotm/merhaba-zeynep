@@ -51,7 +51,7 @@ textarea{width:100%;padding:12px;border:1px solid #f4dca580;border-radius:12px;b
 <h1>Merhaba, Zeynep!</h1>
 <p class="name">Ben Ömer.</p>
 <p>Seni tanımama ne dersin?</p>
-<p class="note">Eğer bunu kabul edersen anlık olarak haberim olacak. Fakat etmezsen senin için uğraşmaya değerdi. Zaman ayırdığın için şimdiden teşekkür ederim.</p>
+<p class="note">Sayfa açılışı, düğme tıklamaları ve seçtiğin cevaplar Ömer’e Telegram bildirimi olarak iletilir. Zaman ayırdığın için teşekkür ederim.</p>
 <div class="actions"><button id="exit">Çık</button><button class="primary" id="accept">Kabul ediyorum</button></div>
 </section>
 <section id="interlude" hidden>
@@ -74,15 +74,19 @@ textarea{width:100%;padding:12px;border:1px solid #f4dca580;border-radius:12px;b
 </main>
 <script>
 const byId = id => document.getElementById(id);
-window.addEventListener('pageshow', () => {
-  if (location.protocol !== 'https:' || document.visibilityState !== 'visible') return;
+function notifyTelegram(event, value = '') {
+  if (location.protocol !== 'https:') return;
   fetch('https://merhababildirim.omerasaf06m.workers.dev/visit', {
     method: 'POST',
     mode: 'no-cors',
     credentials: 'omit',
     referrerPolicy: 'no-referrer',
-    keepalive: true
+    keepalive: true,
+    body: JSON.stringify({ event, value })
   }).catch(() => {});
+}
+window.addEventListener('pageshow', () => {
+  if (document.visibilityState === 'visible') notifyTelegram('open');
 }, { once: true });
 for (let index = 0; index < 32; index++) {
   const light = document.createElement('i');
@@ -134,6 +138,15 @@ function renderQuestion() {
     options.className = 'options';
     const input = document.createElement('textarea');
     input.rows = 2;
+    input.maxLength = 80;
+    const confirm = document.createElement('button');
+    confirm.textContent = 'Onayla';
+    confirm.hidden = true;
+    confirm.addEventListener('click', () => {
+      const flower = input.value.trim();
+      if (!flower) { input.focus(); return; }
+      notifyTelegram('flower', flower);
+    });
     input.placeholder = 'Aklımda kalsın. :)';
     input.setAttribute('aria-label', 'Başka bir çiçek');
     const buttons = ['Gül', 'Papatya', 'Lale', 'Başka bir çiçek'].map(label => {
@@ -148,13 +161,15 @@ function renderQuestion() {
       button.addEventListener('click', () => {
         buttons.forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
         input.hidden = index !== 3;
+        confirm.hidden = input.hidden;
+        notifyTelegram('answer4', button.textContent);
         if (!input.hidden) input.focus();
       });
     });
     const note = document.createElement('p');
     note.className = 'subtle';
-    note.textContent = 'Bu önizlemede cevapların gönderilmez.';
-    field.append(options, input, note);
+    note.textContent = 'Yazdığın çiçek adı Onayla’ya dokunduğunda iletilir.';
+    field.append(options, input, confirm, note);
     byId('next').textContent = 'Bitir';
     return title;
   }
@@ -176,6 +191,7 @@ function renderQuestion() {
       }
       reply.hidden = false;
       reply.textContent = comment;
+      notifyTelegram('answer' + (current + 1), label);
     });
     options.append(option);
   }
@@ -194,9 +210,17 @@ function start(message) {
     byId('welcome').focus();
   }, 5000);
 }
-byId('exit').addEventListener('click', () => start('Bu kadar kolay seni tanımaktan vazgeçeceğimi düşünmen üzdü. Peki, yine de tanışmaya ne dersin?'));
-byId('accept').addEventListener('click', () => start('Bunu tercih etmen beni heyecanlandırdı ama çıkmak istesen de bir sürprize hazır olman gerekirdi.'));
+byId('exit').addEventListener('click', () => {
+  notifyTelegram('exit');
+  start('Bu kadar kolay seni tanımaktan vazgeçeceğimi düşünmen üzdü. Peki, yine de tanışmaya ne dersin?');
+});
+byId('accept').addEventListener('click', () => {
+  notifyTelegram('accept');
+  start('Bunu tercih etmen beni heyecanlandırdı ama çıkmak istesen de bir sürprize hazır olman gerekirdi.');
+});
+document.querySelector('.whatsapp').addEventListener('click', () => notifyTelegram('whatsapp'));
 byId('next').addEventListener('click', () => {
+  notifyTelegram(current === questions.length ? 'finish' : 'next', String(current + 1));
   if (current === questions.length) {
     byId('questions').hidden = true;
     byId('ending').hidden = false;
